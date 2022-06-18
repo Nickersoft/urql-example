@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { initContextClient, gql, queryStore, mutationStore } from '@urql/svelte';
+	import { initContextClient, gql, queryStore } from '@urql/svelte';
 	import { dedupExchange, fetchExchange } from '@urql/core';
 	import { cacheExchange } from '@urql/exchange-graphcache';
 
@@ -30,8 +30,8 @@
 								(data) => {
 									data?.allFilms?.films?.push({
 										__typename: 'Film',
-										id: 'fakeID',
-										title: 'Hello World'
+										id: 'force-awakens',
+										title: 'The Force Awakens'
 									});
 
 									return data;

@@ -1,83 +1,53 @@
-<script lang="ts">
-	import { initContextClient, gql, queryStore } from '@urql/svelte';
-	import { dedupExchange, fetchExchange } from '@urql/core';
+<script lang="ts" context="module">
+	import { gql } from '@urql/svelte';
+	import { createClient, dedupExchange, fetchExchange } from '@urql/core';
+	import type { Load } from '@sveltejs/kit';
 	import { cacheExchange } from '@urql/exchange-graphcache';
 
-	const client = initContextClient({
-		url: 'https://swapi-graphql.netlify.app/.netlify/functions/index',
-		fetchOptions: {
-			credentials: 'omit'
-		},
-		exchanges: [
-			dedupExchange,
-			cacheExchange({
-				resolvers: {
-					Query: {
-						testQuery(parent, args, cache, info) {
-							cache.updateQuery(
-								{
-									query: gql`
-										query {
-											allFilms {
-												films {
-													id
-													title
-												}
-											}
-										}
-									`
-								},
-								(data) => {
-									data?.allFilms?.films?.push({
-										__typename: 'Film',
-										id: 'force-awakens',
-										title: 'The Force Awakens'
-									});
+	export const load: Load = async ({ fetch }) => {
+		const client = createClient({
+			url: 'https://swapi-graphql.netlify.app/.netlify/functions/index',
+			fetch: fetch as typeof window.fetch,
+			fetchOptions: {
+				credentials: 'omit'
+			},
+			exchanges: [dedupExchange, cacheExchange(), fetchExchange]
+		});
 
-									return data;
-								}
-							);
-							return true;
+		const result = await client
+			.query(
+				gql`
+					query {
+						allFilms {
+							films {
+								id
+								title
+							}
 						}
 					}
-				}
-			}),
-			fetchExchange
-		]
-	});
+				`
+			)
+			.toPromise();
 
-	const result = queryStore({
-		client,
-		variables: {},
-		query: gql`
-			query {
-				allFilms {
-					films {
-						id
-						title
-					}
-				}
+		if (result.error) {
+			throw new Error(result.error.message);
+		}
+
+		return {
+			props: {
+				films: result?.data?.allFilms ?? [],
+				client
 			}
-		`
-	});
+		};
+	};
+</script>
 
-	function mutate() {
-		queryStore({
-			client,
-			variables: {},
-			query: gql`
-				query {
-					testQuery
-				}
-			`
-		});
-	}
+<script lang="ts">
+	export let films: any[] = [];
 </script>
 
 <ol>
-	{#each $result.data?.allFilms?.films ?? [] as film}
+	{#each films as film}
 		<li>{film.title}</li>
 	{/each}
 </ol>
-
-<button on:click={mutate}>Add New</button>
